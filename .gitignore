@@ -1,0 +1,39 @@
+# Environment & secrets — NEVER commit these
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Data directories (too large for git)
+data/
+mlflow_runs/
+
+# Chroma vector store
+*.sqlite3
+*.parquet
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
