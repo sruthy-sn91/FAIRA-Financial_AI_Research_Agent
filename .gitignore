@@ -1,39 +1,72 @@
-# Environment & secrets — NEVER commit these
+# ── Secrets ───────────────────────────────────────────────────────────────────
 .env
-*.env
+.env.local
+.env.*.local
+.env.production
+# Re-include the example template so new contributors know what vars are needed
+!.env.example
 
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-.eggs/
-
-# Virtual environment
+# ── Virtual environments ───────────────────────────────────────────────────────
 venv/
 .venv/
 env/
+ENV/
 
-# Data directories (too large for git)
+# ── Data (large, mounted as Docker volumes — not committed) ───────────────────
 data/
 mlflow_runs/
 
-# Chroma vector store
+# ── ChromaDB / vector store artefacts ─────────────────────────────────────────
 *.sqlite3
 *.parquet
+chroma/
 
-# IDE
+# ── Python cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+.Python
+
+# ── Distribution / packaging ──────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+.eggs/
+wheels/
+
+# ── Testing & coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ── Type checkers / linters ───────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Docker runtime overrides ──────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Claude Code ───────────────────────────────────────────────────────────────
+.claude/
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Docker
+# ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
+logs/

@@ -1,0 +1,54 @@
+# ── Secrets (never bake into image; injected at runtime via env_file) ─────────
+.env
+*.env
+!.env.example
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Large runtime data (mounted as volumes at runtime, not baked in) ───────────
+data/
+mlflow_runs/
+
+# ── Dev / ops files that have no place inside the app image ───────────────────
+nginx/
+scripts/
+systemd/
+Makefile
+*.md
+
+# ── Test artifacts ─────────────────────────────────────────────────────────────
+tests/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# ── Python bytecode cache ──────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Git ────────────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.github/
+
+# ── IDE ────────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Claude Code ────────────────────────────────────────────────────────────────
+.claude/
+
+# ── OS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ───────────────────────────────────────────────────────────────────────
+*.log

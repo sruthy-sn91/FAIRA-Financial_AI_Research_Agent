@@ -1,0 +1,149 @@
+##############################################################################
+# Financial AI Research Agent — Docker Compose
+#
+# Services (always on):
+#   mlflow   Experiment tracking UI              → http://localhost:5000
+#   api      FastAPI backend + SSE streaming     → http://localhost:8000
+#   ui       Streamlit research frontend         → http://localhost:8501
+#
+# Services (profile: prod):
+#   nginx    Reverse proxy, single entry point   → http://localhost:80
+#            Routes:  /        → ui:8501   (WebSocket-aware)
+#                     /api/    → api:8000  (SSE buffering disabled)
+#                     /mlflow/ → mlflow:5000
+#
+# Quick-start:
+#   cp .env.example .env          # fill in your API keys
+#   docker compose up --build     # development (direct ports)
+#   docker compose --profile prod up --build   # production (nginx on :80)
+#
+# Common commands:
+#   docker compose logs -f api         tail API logs
+#   docker compose exec api bash       shell into running API container
+#   docker compose down -v             stop everything and remove volumes
+#   docker compose build --no-cache    force full rebuild
+##############################################################################
+
+services:
+
+  # ── MLflow Tracking ──────────────────────────────────────────────────────────
+  # Started first because the API connects to it on startup.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: financial-agent-mlflow
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri /mlflow_data
+        --default-artifact-root /mlflow_data
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow_data
+    healthcheck:
+      # MLflow's official image has Python but not curl; use urllib instead.
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: financial-agent-app      # named so the ui service can reuse it
+    container_name: financial-agent-api
+    command: uvicorn api.server:app --host 0.0.0.0 --port 8000 --log-level info
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind-mount keeps ChromaDB and SEC filings on the host filesystem
+      # so data survives container rebuilds and is easy to inspect/backup.
+      - ./data:/app/data
+    env_file: .env
+    environment:
+      - CHROMA_PATH=/app/data/chroma
+      - FILINGS_PATH=/app/data/filings
+      # Point the agent at the MLflow container by service name, not localhost
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      # Containers resolve "localhost" to themselves, not the host machine.
+      # host.docker.internal is the host's IP on Docker Desktop (Win/Mac).
+      # The extra_hosts entry below provides it on Linux Docker too.
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  # ── Streamlit UI ─────────────────────────────────────────────────────────────
+  # Reuses the image already built by the api service — no second build needed.
+  ui:
+    image: financial-agent-app
+    container_name: financial-agent-ui
+    command: >
+      streamlit run ui/app.py
+        --server.port 8501
+        --server.address 0.0.0.0
+        --server.headless true
+        --browser.gatherUsageStats false
+    ports:
+      - "8501:8501"
+    env_file: .env
+    environment:
+      # The UI calls the API by Docker service name, not localhost
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────────
+  # Activated only with: docker compose --profile prod up
+  # In development you hit services directly on their individual ports.
+  nginx:
+    image: nginx:alpine
+    container_name: financial-agent-nginx
+    profiles: [prod]
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/docker.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - ui
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+##############################################################################
+
+networks:
+  agent-net:
+    driver: bridge
+
+volumes:
+  # Named volume for MLflow's SQLite backend and artifact store.
+  # Use a named volume (not a bind-mount) so MLflow owns the directory layout.
+  mlflow_data:
